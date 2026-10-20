@@ -1,0 +1,20 @@
+[project]
+name = "paper-crawler"
+version = "0.1.0"
+description = "Collect recent papers (metadata + abstracts, optional full text) from PubMed, bioRxiv and medRxiv"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.28",
+    "tqdm>=4.64",
+]
+
+[project.scripts]
+paper-crawler = "paper_crawler.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["paper_crawler*"]
