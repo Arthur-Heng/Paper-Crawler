@@ -1,8 +1,43 @@
 # paper-crawler
 
-Collect every paper that appeared in **PubMed**, **bioRxiv** and **medRxiv** over a date window
-(default: the past 30 days). Output is metadata + abstracts as JSONL and CSV, with optional
-full text from PubMed Central.
+Collect every paper that appeared in **PubMed**, **bioRxiv** and **medRxiv** in the past month
+(or any date window). Output: title, abstract, authors, DOI, dates, etc. as JSONL + CSV.
+
+## Quick start
+
+```bash
+git clone git@github.com:Arthur-Heng/Paper-Crawler.git && cd Paper-Crawler
+python -m venv .venv && . .venv/bin/activate
+pip install -e .                        # only needs requests + tqdm
+
+export NCBI_EMAIL=you@illinois.edu      # NCBI asks for a contact email
+
+paper-crawler all --days 30 --out data  # PubMed + bioRxiv + medRxiv, last 30 days
+```
+
+Results land in `data/<source>/<source>_<start>_<end>.jsonl` (and `.csv`), with a
+`data/summary_<start>_<end>.json` giving counts. If the run is interrupted, re-run the same
+command and it resumes.
+
+Expected for one month (Oct 2026): PubMed ~100-150k records (25-40 min; 3x faster with a free
+[NCBI API key](https://www.ncbi.nlm.nih.gov/account/settings/) in `NCBI_API_KEY`),
+bioRxiv ~6-8k and medRxiv ~1-2k (a minute or two).
+
+Common variations:
+
+```bash
+paper-crawler all --start 2026-09-20 --end 2026-10-20 --out data     # explicit window
+paper-crawler all --sources biorxiv medrxiv --days 30                 # preprints only
+paper-crawler pubmed --days 30 --query '"single cell"[tiab]'          # PubMed topic filter
+paper-crawler biorxiv --days 30 --category neuroscience               # bioRxiv subject filter
+paper-crawler pmc-fulltext --input data/pubmed/pubmed_<start>_<end>.jsonl --out data/pubmed/fulltext
+```
+
+---
+
+## Details
+
+### Sources
 
 Only the official, free APIs are used:
 
@@ -12,25 +47,7 @@ Only the official, free APIs are used:
 | bioRxiv | `https://api.biorxiv.org/details/biorxiv/...` | DOI, version, date, title, abstract, authors, corresponding author + institution, category, license, published-journal DOI, JATS/PDF URLs | 2 req/s |
 | medRxiv | `https://api.biorxiv.org/details/medrxiv/...` | same as bioRxiv | 2 req/s |
 
-## Quick start
-
-```bash
-git clone <this repo> paper-crawler && cd paper-crawler
-python -m venv .venv && . .venv/bin/activate      # or: uv venv .venv && . .venv/bin/activate
-pip install -e .                                  # installs the `paper-crawler` command
-
-cp .env.example .env                              # put your email (and optional NCBI API key) in it
-export NCBI_EMAIL=you@illinois.edu                # or: set -a; . ./.env; set +a
-
-# everything from the last 30 days, all three sources -> ./data
-paper-crawler all --days 30 --out data
-# equivalently: scripts/collect_last_month.sh
-```
-
-Expected size for one month (as of Oct 2026): PubMed ~100-150k records (~1-1.5 GB JSONL,
-25-40 min without an API key, 3x faster with one), bioRxiv ~6-8k, medRxiv ~1-2k (a minute or two).
-
-## Commands
+### Commands
 
 ```bash
 paper-crawler all      --days 30 --out data [--sources pubmed biorxiv] [--query ...] [--category ...]
@@ -57,7 +74,7 @@ paper-crawler <cmd> --help
 | `--fulltext` (rxiv) | Try to download JATS XML full text. See caveat below. |
 | `--email/--api-key` | NCBI identification; also read from `NCBI_EMAIL` / `NCBI_API_KEY`. |
 
-## Output layout
+### Output layout
 
 ```
 data/
@@ -103,7 +120,7 @@ Records from NCBI Bookshelf appear with `"record_type": "book"` and fewer fields
 `new results` / `confirmatory results` / `contradictory results` on bioRxiv and
 `PUBLISHAHEADOFPRINT` on medRxiv.
 
-## Full text
+### Full text
 
 * **PubMed -> PMC.** `paper-crawler pmc-fulltext` fetches JATS XML from PubMed Central for every
   record that has a `pmcid` and keeps the ones whose XML actually contains a body (open-access
@@ -117,7 +134,7 @@ Records from NCBI Bookshelf appear with `"record_type": "book"` and fewer fields
   (see https://www.biorxiv.org/tdm). Europe PMC also indexes these preprints (source `PPR`) and
   serves full text for a subset of CC-licensed ones via its REST API.
 
-## How it works / caveats
+### How it works / caveats
 
 * **PubMed.** For each window piece an `esearch` with `usehistory=y` returns the hit count and a
   `WebEnv`; `efetch` then streams the XML in batches of `--batch-size` (500) via POST, which avoids
@@ -137,7 +154,7 @@ Records from NCBI Bookshelf appear with `"record_type": "book"` and fewer fields
   heavy users.
 * Dependencies: Python >= 3.9, `requests`, `tqdm`. No Biopython required.
 
-## Repository layout
+### Repository layout
 
 ```
 paper_crawler/
@@ -152,7 +169,7 @@ scripts/
 legacy/     the earlier lab scripts this package was distilled from (see legacy/README.md)
 ```
 
-## Programmatic use
+### Programmatic use
 
 ```python
 import datetime as dt
